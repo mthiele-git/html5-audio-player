@@ -15,21 +15,106 @@
         endEvt = isTouch ? 'touchend' : 'mouseup',
         cancelEvt = isTouch ? 'touchcancel' : 'mouseup',
         a = document.createElement('audio'),
-        supportAudio = a.canPlayType && (a.canPlayType('audio/mpeg') !== '');
-
+        supportAudio = a.canPlayType && (a.canPlayType('audio/mpeg') !== ''),
+        Track,
+        Album;
+    
+    // Helper
     function ucfirst(str) {
         return str.slice(0, 1).toUpperCase() + str.substring(1);
     }
-
-    function TRACK(trackId, audioSrc) {
-        this.id = trackId;
-        this.src = audioSrc;
-        this.wrapper = c$('#' + trackId);
+    
+    Album = function (id, data) {
+        this.id = id;
+        this.title = data.title;
+        this.artist = data.artist;
+        this.wrapper = c$('#' + this.id);
+        this.control = c$('.album-control', this.wrapper);
+        this.playlist = c$('.album-playlist', this.wrapper);
+        this.playlistToggler = c$('.album-playlist-toggler', this.wrapper);
+        this.toggleArrow = c$('.toggle-arrow', this.playlistToggler);
+        this.playlistVisible = !this.playlist.hasClass('hidden');
+        this.playing = false;
+        this.trackIndex = 0;
+        this.tracks = [];
+        this.init();
+    };
+    
+    Album.prototype = {
+        instances: [],
+        init: function () {
+            var that = this;
+            
+            this.index = this.instances.push(this) - 1;
+                        
+            this.playlistToggler.bind('click', function (e) {
+                that.togglePlaylist();
+            });
+            
+            c$('.audio-wrapper', this.wrapper).each(function (el, i) {
+                that.tracks[i] = new Track(this.id, this.dataset, that);
+            });
+            
+            c$('.song-count', this.wrapper).html(this.tracks.length);
+            
+            c$('.album-title').html(this.title);
+            
+            c$('.album-artist').html(this.artist);
+            
+            this.control.bind('click', function () {
+                that.showPlaylist();
+                if (!that.playing) {
+                    that.playTrack();
+                } else {
+                    that.pauseTrack();
+                }
+            });
+        },
+        playTrack: function () {
+            this.tracks[this.trackIndex].play();
+        },
+        pauseTrack: function () {
+            this.tracks[this.trackIndex].pause();
+        },
+        toggleControlIcon: function () {
+            this.control.removeClass((this.playing ? 'play' : 'pause')).addClass((this.playing ? 'pause' : 'play'));
+        },
+        togglePlaylist: function () {
+            if (this.playlistVisible) {
+                this.hidePlaylist();
+            } else {
+                this.showPlaylist();
+            }
+        },
+        showPlaylist: function () {
+            if (!this.playlistVisible) {
+                this.playlist.removeClass('hidden');
+                this.playlistVisible = true;
+                this.toggleArrow.addClass('up');
+            }
+        },
+        hidePlaylist: function () {
+            if (this.playlistVisible) {
+                this.playlist.addClass('hidden');
+                this.playlistVisible = false;
+                this.toggleArrow.removeClass('up');
+            }
+        }
+    };
+    
+    Track = function (id, data, album) {
+        this.id = id;
+        this.title = data.title;
+        this.artist = data.artist;
+        this.src = data.src;
+        this.album = album || null;
+        this.wrapper = c$('#' + this.id);
         this.playing = false;
         this.loadStarted = false;
         this.audio = null;
         this.control = null;
         this.progressBar = null;
+        this.index = 0;
         this.duration = 0;
         this.loaded = 0;
 
@@ -39,27 +124,31 @@
             console.log('No HTML5 audio support!');
             return;
         }
-    }
+    };
 
-    TRACK.prototype = {
+    Track.prototype = {
 
         instances: [],
 
         init: function () {
 
-            var that = this;
+            var that = this,
+                length;
             
+            // event listener for progress bar
             function adjustCurrentTime(e) {
                 that.adjustCurrentTime(e);
             }
 
-            this.instances.push(this);
+            this.index = this.instances.push(this) - 1;
 
             this.createPlayer();
 
             this.audio = new window.Audio();
 
             this.audio.load(); // required for 'older' browsers
+            
+            this.audio.preload = 'metadata';
 
             this.audio.setAttribute('src', this.src);
 
@@ -82,6 +171,8 @@
                 adjustCurrentTime(e);
                 that.progressBar.bind(moveEvt, adjustCurrentTime);
             });
+            
+            this.player = c$('.audio-player', this.wrapper);
 
             this.progressBar.bind(endEvt, function () {
                 that.progressBar.unbind(moveEvt, adjustCurrentTime);
@@ -106,15 +197,30 @@
         onPlay: function () {
             this.control.removeClass('play').addClass('pause');
             this.playing = true;
+            c$('.audio-player').removeClass('active');
+            this.player.addClass('active');
+            if (this.album) {
+                this.album.playing = true;
+                this.album.trackIndex = this.index;
+                this.album.toggleControlIcon();
+            }
         },
 
         onPause: function () {
             this.control.removeClass('pause').addClass('play');
             this.playing = false;
+            if (this.album) {
+                this.album.playing = false;
+                this.album.toggleControlIcon();
+            }
         },
         
         onEnded: function () {
             this.setCurrentTime(0);
+            // play next track
+            if (this.instances[this.index + 1] !== undefined) {
+                this.instances[this.index + 1].play();
+            }
         },
 
         onLoadstart: function () {
@@ -128,7 +234,7 @@
                         //console.log('buffering finished');
                         window.clearInterval(that.loadTimer);
                     }
-                }, 250);
+                }, 200);
             }
         },
 
@@ -201,10 +307,8 @@
         }
     };
 
-    c$('.audio-wrapper').each(function (el, i) {
-        window['track' + i] = new TRACK(this.id, this.dataset.audioSrc);
+    c$('.album').each(function (el, i) {
+        window['album' + i] = new Album(this.id, this.dataset);
     });
-
-    window.AUDIOPLAYER = TRACK.prototype.instances;
 
 }(window.c$));

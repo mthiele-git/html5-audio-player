@@ -12,17 +12,37 @@
     </head>
     <body>
         <h1>Audio Player Demo</h1>
-        <div id="track-1" class="audio-wrapper" data-audio-src="mp3/track-1.mp3">
-             <a class="audio-dl-link" href="mp3/track-1.mp3">Download Track 1</a>
-        </div>
-        <div id="track-2" class="audio-wrapper" data-audio-src="mp3/track-2.mp3">
-             <a class="audio-dl-link" href="mp3/track-2.mp3">Download Track 2</a>
-        </div>
-        <div id="track-3" class="audio-wrapper" data-audio-src="mp3/track-3.mp3">
-             <a class="audio-dl-link" href="mp3/track-3.mp3">Download Track 3</a>
-        </div>
-        <div id="track-4" class="audio-wrapper" data-audio-src="mp3/track-4.mp3">
-             <a class="audio-dl-link" href="mp3/track-4.mp3">Download Track 4</a>
+        <div id="album-1" class="album" data-title="Demo-Compilation" data-artist="Various Artists">
+            <div class="album-teaser clearfix">
+                <div class="album-teaser-cover">
+                    <img src="img/cover.jpg" class="album-cover" />
+                </div>
+                <div class="album-teaser-info">
+                    <div class="album-title"></div>
+                    <div class="album-artist"></div>
+                    <div class="album-control play clearfix"></div>
+                    <div class="album-songs">
+                        <span class="song-count"></span> Songs
+                    </div>
+                </div>
+                <div class="album-playlist-toggler">
+                    <div class="toggle-arrow"></div>
+                </div>
+            </div>
+            <div class="album-playlist hidden">
+                <div id="track-1" class="audio-wrapper" data-src="mp3/track-1.mp3" data-title="The Ego" data-artist="Nicolas Jaar &#38; Theatre Roosevelt">
+                     <a class="audio-dl-link" href="mp3/track-1.mp3">Download Track 1</a>
+                </div>
+                <div id="track-2" class="audio-wrapper" data-src="mp3/track-2.mp3" data-title="Symfonisk Utviklingshemming" data-artist="Prins Thomas">
+                     <a class="audio-dl-link" href="mp3/track-2.mp3">Download Track 2</a>
+                </div>
+                <div id="track-3" class="audio-wrapper" data-src="mp3/track-3.mp3" data-title="Melville" data-artist="Robot Koch &#38; Sieren">
+                     <a class="audio-dl-link" href="mp3/track-3.mp3">Download Track 3</a>
+                </div>
+                <div id="track-4" class="audio-wrapper" data-src="mp3/track-4.mp3" data-title="Leaving (Sieren Revisit)" data-artist="Sieren">
+                     <a class="audio-dl-link" href="mp3/track-4.mp3">Download Track 4</a>
+                </div>
+            </div>
         </div>
         <script src="js/framework.js"></script>
         <script src="js/audioplayer.js"></script>
