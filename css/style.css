@@ -1,27 +1,111 @@
+/*  ==========================================================================
+    Normalize
+    ==========================================================================  */
+div {
+    -webkit-box-sizing: border-box;
+    -moz-box-sizing: border-box;
+    box-sizing: border-box;
+}
+img {
+  vertical-align: middle;
+}
+a {
+  text-decoration: none;
+  color: inherit;
+}
+
 body {
     font-family: 'Helvetica Neue', Helvetica, Arial, Sans-Serif;
-    color: #333;
+    font-size: 13px;
+    color: #353535;
     padding: 0 10px;
     margin: 0;
     -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
     -webkit-text-size-adjust: 100%;
 }
-a {
-    text-decoration: none;
-    color: inherit;
+.hidden {
+    display: none !important;
 }
-h1 {
-
+.block {
+    display: block !important;
+}
+.clearfix:after {
+    content: "";
+    display: table;
+    clear: both;
+}
+.clearfix {
+    *zoom: 1;
+}
+.album-teaser {
+    position: relative;
+    padding: 1px 1px 5px 1px;
+    border: 1px solid #999;
+}    
+.album-teaser-cover {
+    float: left;
+}
+.album-teaser-cover img {
+    display: block;
+    width: 80px;
+    height: 80px;
+}    
+.album-teaser-info {
+    padding: 5px 40px 0 90px;
+}
+.album-playlist-toggler {
+    position: absolute;
+    text-align: center;
+    padding: 7px 5px;
+    width: 40px;
+    height: 40px;
+    right: 0;
+    top: 0;
+}
+.toggle-arrow {
+    display: inline-block;
+    width: 20px;
+    height: 12px;
+    background-image: url('../img/arrow_down.png');
+    background-size: contain;
+}
+.toggle-arrow.up {
+    background-image: url('../img/arrow_up.png');
+}
+.album-control {
+    float: left;
+    width: 40px;
+    height: 40px;
+    background-size: 30px 30px;
+    background-position: center center;
+    background-repeat: no-repeat;
+}
+.album-control.play {
+    background-image: url('../img/play.png');
+}
+.album-control.pause {
+    background-image: url('../img/pause.png');
+}
+.album-songs {
+    text-align: right;
+    padding-top: 20px;
 }
 .audio-wrapper {
-    margin: 10px 0;
+    padding: 0 0 10px 0;
+}
+.album-playlist .audio-wrapper {
+    padding: 0;
+    border: 1px solid #999;
+    border-top: 0;
 }
 .audio-player {
     height: 44px;
     display: table;
     width: 100%;
-    border: 1px solid #999;
-    padding: 1px;
+    padding: 5px;
+}
+.audio-player.active {
+    background: #FFC061;
 }
 .audio-control,
 .audio-time {
@@ -59,13 +143,14 @@ h1 {
     background: #fff;
     margin: -10px 0 0 -7px;
 }
-.audio-control.pause::after {
+.audio-control.pause::after{
     margin: -10px 0 0 2px;
 }
 .audio-progress {
     position: relative;
     width: 100%;
-    height: 44px;
+    height: 46px;
+    background: #fff;
     border: 1px solid #333;
 }
 .audio-progress .progress,
@@ -80,5 +165,5 @@ h1 {
     z-index: 1;
 }
 .audio-progress .loaded {
-    background: #f1f1f1;
+    background: #ddd;
 }
