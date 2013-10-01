@@ -8,16 +8,15 @@
 
     'use strict';
 
-    var document = window.document,
-        isTouch = window.ontouchstart !== undefined,
-        startEvt = isTouch ? 'touchstart' : 'mousedown',
-        moveEvt = isTouch ? 'touchmove' : 'mousemove',
-        endEvt = isTouch ? 'touchend' : 'mouseup',
-        cancelEvt = isTouch ? 'touchcancel' : 'mouseup',
-        a = document.createElement('audio'),
-        supportAudio = a.canPlayType && (a.canPlayType('audio/mpeg') !== ''),
-        Track,
-        Album;
+    var doc = window.document,
+        a = doc.createElement('audio'),
+        bAudio = a.canPlayType && (a.canPlayType('audio/mpeg') !== '' && a.canPlayType('audio/mpeg') !== 'no'),
+        bTouch = window.ontouchstart !== undefined,
+        sStartEvt = bTouch ? 'touchstart' : 'mousedown',
+        sMoveEvt = bTouch ? 'touchmove' : 'mousemove',
+        sEndEvt = bTouch ? 'touchend' : 'mouseup',
+        Album,
+        Track;
     
     // Helper
     function ucfirst(str) {
@@ -28,15 +27,14 @@
         this.id = id;
         this.title = data.title;
         this.artist = data.artist;
-        this.wrapper = c$('#' + this.id);
-        this.control = c$('.album-control', this.wrapper);
-        this.playlist = c$('.album-playlist', this.wrapper);
-        this.playlistToggler = c$('.album-playlist-toggler', this.wrapper);
-        this.toggleArrow = c$('.toggle-arrow', this.playlistToggler);
-        this.playlistVisible = !this.playlist.hasClass('hidden');
-        this.playing = false;
-        this.trackIndex = 0;
-        this.tracks = [];
+        this.$wrapper = c$('#' + this.id);
+        this.$control = c$('.album-control', this.$wrapper);
+        this.$playlist = c$('.album-playlist', this.$wrapper);
+        this.$playlistToggler = c$('.album-playlist-toggler', this.$wrapper);
+        this.bPlaylistVisible = !this.$playlist.hasClass('hidden');
+        this.bPlaying = false;
+        this.iTrackNr = 0;
+        this.aTracks = [];
         this.init();
     };
     
@@ -45,59 +43,55 @@
         init: function () {
             var that = this;
             
-            this.index = this.instances.push(this) - 1;
+            this.iIndex = this.instances.push(this) - 1;
                         
-            this.playlistToggler.bind('click', function (e) {
+            this.initPlaylist();
+            
+            this.$playlistToggler.bind('click', function (e) {
                 that.togglePlaylist();
             });
-            
-            c$('.audio-wrapper', this.wrapper).each(function (el, i) {
-                that.tracks[i] = new Track(this.id, this.dataset, that);
-            });
-            
-            c$('.song-count', this.wrapper).html(this.tracks.length);
+                        
+            c$('.song-count', this.$wrapper).html(this.aTracks.length);
             
             c$('.album-title').html(this.title);
             
             c$('.album-artist').html(this.artist);
             
-            this.control.bind('click', function () {
+            this.$control.bind('click', function () {
                 that.showPlaylist();
-                if (!that.playing) {
-                    that.playTrack();
-                } else {
-                    that.pauseTrack();
-                }
+                return !that.bPlaying ? that.playTrack() : that.pauseTrack();
             });
         },
         playTrack: function () {
-            this.tracks[this.trackIndex].play();
+            this.aTracks[this.iTrackNr].play();
         },
         pauseTrack: function () {
-            this.tracks[this.trackIndex].pause();
+            this.aTracks[this.iTrackNr].pause();
         },
         toggleControlIcon: function () {
-            this.control.removeClass((this.playing ? 'play' : 'pause')).addClass((this.playing ? 'pause' : 'play'));
+            this.$control.removeClass((this.bPlaying ? 'play' : 'pause')).addClass((this.bPlaying ? 'pause' : 'play'));
         },
         togglePlaylist: function () {
-            if (this.playlistVisible) {
-                this.hidePlaylist();
-            } else {
-                this.showPlaylist();
-            }
+            return this.bPlaylistVisible ? this.hidePlaylist() : this.showPlaylist();
+        },
+        initPlaylist: function () {
+            var that = this;
+            c$('.audio-wrapper', this.$wrapper).each(function (el, i) {
+                that.aTracks[i] = new Track(this.id, this.dataset, that);
+            });
         },
         showPlaylist: function () {
-            if (!this.playlistVisible) {
-                this.playlist.removeClass('hidden');
-                this.playlistVisible = true;
-                this.toggleArrow.addClass('up');
+            if (!this.bPlaylistVisible) {
+                this.$playlist.removeClass('hidden');
+                this.bPlaylistVisible = true;
+                this.$playlistToggler.addClass('up');
             }
         },
         hidePlaylist: function () {
-            if (this.playlistVisible) {
-                this.playlist.addClass('hidden');
-                this.playlistVisible = false;
-                this.toggleArrow.removeClass('up');
+            if (this.bPlaylistVisible) {
+                this.$playlist.addClass('hidden');
+                this.bPlaylistVisible = false;
+                this.$playlistToggler.removeClass('up');
             }
         }
     };
@@ -108,22 +102,22 @@
         this.artist = data.artist;
         this.src = data.src;
         this.album = album || null;
-        this.wrapper = c$('#' + this.id);
-        this.playing = false;
-        this.loadStarted = false;
-        this.audio = null;
-        this.control = null;
-        this.progressBar = null;
-        this.index = 0;
-        this.duration = 0;
-        this.loaded = 0;
+        this.$wrapper = c$('#' + this.id);
+        this.$duration = c$('.duration', this.$wrapper);
+        this.$control = this.$progressBar = this.$player = this.audio = null;
+        this.bPlaying = false;
+        this.bLoadStarted = false;
+        this.bPlayStarted = false;
+        this.iIndex = 0;
+        this.fDuration = 0;
+        this.iLoadedPercent = 0;
 
-        if (supportAudio) {
-            this.init();
-        } else {
+        if (!bAudio) {
             console.log('No HTML5 audio support!');
             return;
         }
+        
+        this.init();
     };
 
     Track.prototype = {
@@ -132,15 +126,14 @@
 
         init: function () {
 
-            var that = this,
-                length;
+            var that = this;
             
             // event listener for progress bar
             function adjustCurrentTime(e) {
                 that.adjustCurrentTime(e);
             }
 
-            this.index = this.instances.push(this) - 1;
+            this.iIndex = this.instances.push(this) - 1;
 
             this.createPlayer();
 
@@ -152,65 +145,78 @@
 
             this.audio.setAttribute('src', this.src);
 
-            ['play', 'pause', 'ended', 'timeupdate', 'loadstart', 'durationchange'].forEach(function (evtType) {
+            this.$control = c$('.audio-control', this.$wrapper).bind(sStartEvt, function (e) {
+                return !that.bPlaying ? that.play() : that.pause();
+            });
+
+            this.$progressBar = c$('.audio-progress', this.$wrapper).bind(sStartEvt, function (e) {
+                adjustCurrentTime(e);
+                that.$progressBar.bind(sMoveEvt, adjustCurrentTime);
+            });
+            
+            this.$player = c$('.audio-player', this.$wrapper);
+            
+            this.$duration = c$('.duration', this.$wrapper);
+            
+            this.$loaded = c$('.loaded', this.$wrapper);
+            
+            this.$progress = c$('.progress', this.$wrapper);
+            
+            this.$played = c$('.played', this.$wrapper);
+
+            this.$progressBar.bind(sEndEvt, function () {
+                that.$progressBar.unbind(sMoveEvt, adjustCurrentTime);
+            });
+            
+            ['play', 'pause', 'ended', 'timeupdate', 'loadstart', 'loadedmetadata'].forEach(function (evtType) {
                 var listener = 'on' + ucfirst(evtType);
                 c$(that.audio).bind(evtType, function (e) {
                     that[listener]();
                 });
             });
-
-            this.control = c$('.audio-control', this.wrapper).bind(startEvt, function (e) {
-                if (!that.playing) {
-                    that.play();
-                } else {
-                    that.pause();
-                }
-            });
-
-            this.progressBar = c$('.audio-progress', this.wrapper).bind(startEvt, function (e) {
-                adjustCurrentTime(e);
-                that.progressBar.bind(moveEvt, adjustCurrentTime);
-            });
-            
-            this.player = c$('.audio-player', this.wrapper);
-
-            this.progressBar.bind(endEvt, function () {
-                that.progressBar.unbind(moveEvt, adjustCurrentTime);
-            });
         },
 
         createPlayer: function () {
-            this.wrapper.html(
-                '<div class="audio-player">' +
-                    '<div class="audio-control play"></div>' +
-                    '<div class="audio-progress">' +
-                        '<div class="progress"></div>' +
-                        '<div class="loaded"></div>' +
+            this.$wrapper.html(
+                '<div class="audio-player clearfix">' +
+                    '<div class="audio-control">' +
+                        '<div class="play-pause"></div>' +
                     '</div>' +
-                    '<div class="audio-time">' +
-                        '<span class="played">00:00</span>/<strong class="duration">00:00</strong>' +
+                    '<div class="audio-metadata clearfix">' +
+                        '<div class="audio-title">dummy-title</div>' +
+                        '<div class="audio-time">' +
+                            '<span class="played">00:00</span>/<strong class="duration">00:00</strong>' +
+                        '</div>' +
+                        '<div class="audio-progress">' +
+                            '<div class="progress-bg"></div>' +
+                            '<div class="progress"></div>' +
+                            '<div class="loaded"></div>' +
+                        '</div>' +
                     '</div>' +
                     '</div>'
             );
         },
 
         onPlay: function () {
-            this.control.removeClass('play').addClass('pause');
-            this.playing = true;
+            this.$control.removeClass('play').addClass('pause');
+            this.bPlaying = true;
             c$('.audio-player').removeClass('active');
-            this.player.addClass('active');
+            this.$player.addClass('active');
             if (this.album) {
-                this.album.playing = true;
-                this.album.trackIndex = this.index;
+                this.album.bPlaying = true;
+                this.album.iTrackNr = this.iIndex;
                 this.album.toggleControlIcon();
+            }
+            if (!this.started) {
+                this.started = true;
             }
         },
 
         onPause: function () {
-            this.control.removeClass('pause').addClass('play');
-            this.playing = false;
+            this.$control.removeClass('pause').addClass('play');
+            this.bPlaying = false;
             if (this.album) {
-                this.album.playing = false;
+                this.album.bPlaying = false;
                 this.album.toggleControlIcon();
             }
         },
@@ -218,19 +224,19 @@
         onEnded: function () {
             this.setCurrentTime(0);
             // play next track
-            if (this.instances[this.index + 1] !== undefined) {
-                this.instances[this.index + 1].play();
+            if (this.instances[this.iIndex + 1] !== undefined) {
+                this.instances[this.iIndex + 1].play();
             }
         },
 
         onLoadstart: function () {
-            if (!this.loadStarted) {
-                this.loadStarted = true;
+            if (!this.bLoadStarted) {
+                this.bLoadStarted = true;
                 var that = this;
                 that.loadTimer = window.setInterval(function () {
                     that.setLoadedProgress();
-                    //console.log('buffered ' + that.loadedPercent + '%');
-                    if (that.loadedPercent >= 100) {
+                    //console.log('buffered ' + that.iLoadedPercent + '%');
+                    if (that.iLoadedPercent >= 100) {
                         //console.log('buffering finished');
                         window.clearInterval(that.loadTimer);
                     }
@@ -242,39 +248,38 @@
             this.setPlayedProgress();
         },
 
-        onDurationchange: function () {
+        onLoadedmetadata: function () {
             this.setDuration();
         },
 
         setDuration: function () {
             if (!this.audio.duration) {
                 return;
-            } else {
-                this.duration = this.audio.duration;
             }
-            var m = Math.floor(this.duration / 60),
-                s = Math.ceil(this.duration % 60);
-            c$('.duration', this.wrapper).html((m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s);
+            this.fDuration = this.audio.duration;
+            var m = Math.floor(this.fDuration / 60),
+                s = Math.ceil(this.fDuration % 60);
+            this.$duration.html((m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s);
         },
 
         setLoadedProgress: function () {
             var durationLoaded = this.audio.buffered.end(this.audio.buffered.length - 1);
-            this.loadedPercent = Math.ceil((durationLoaded / this.duration) * 100);
-            c$('.loaded', this.wrapper).css('width: ' + this.loadedPercent + '%;');
+            this.iLoadedPercent = Math.ceil((durationLoaded / this.fDuration) * 100);
+            this.$loaded.css('width: ' + this.iLoadedPercent + '%;');
         },
 
         setPlayedProgress: function () {
             var currentTime = this.audio.currentTime,
-                playedPercent = Math.ceil((currentTime / this.audio.duration) * 100),
+                playedPercent = (currentTime / this.audio.duration) * 100,
                 m = Math.floor(currentTime / 60),
                 s = Math.ceil(currentTime % 60);
-            c$('.progress', this.wrapper).css('width: ' + playedPercent + '%;');
-            c$('.played', this.wrapper).html((m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s);
+            this.$progress.css('width: ' + playedPercent + '%;');
+            this.$played.html((m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s);
         },
 
         adjustCurrentTime: function (e) {
-            var evt = isTouch ? e.touches[0] : e,
-                s = Math.round((this.audio.duration * (evt.pageX - this.progressBar[0].offsetLeft)) / this.progressBar[0].offsetWidth);
+            var evt = bTouch ? e.touches[0] : e,
+                s = Math.round((this.audio.duration * (evt.pageX - this.$progressBar[0].offsetLeft)) / this.$progressBar[0].offsetWidth);
             this.setCurrentTime(s);
         },
         
@@ -284,13 +289,13 @@
 
         play: function () {
             this.pauseAll();
-            if (!this.playing) {
+            if (!this.bPlaying) {
                 this.audio.play();
             }
         },
 
         pause: function () {
-            if (this.playing) {
+            if (this.bPlaying) {
                 this.audio.pause();
             }
         },

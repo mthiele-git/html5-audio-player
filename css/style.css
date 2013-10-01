@@ -18,10 +18,13 @@ body {
     font-family: 'Helvetica Neue', Helvetica, Arial, Sans-Serif;
     font-size: 13px;
     color: #353535;
-    padding: 0 10px;
+    padding: 0;
     margin: 0;
     -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
     -webkit-text-size-adjust: 100%;
+}
+h1 {
+    padding: 0 7px;
 }
 .hidden {
     display: none !important;
@@ -37,119 +40,127 @@ body {
 .clearfix {
     *zoom: 1;
 }
+
+
+/*  ==========================================================================
+    Album Teaser
+    ==========================================================================  */
 .album-teaser {
-    position: relative;
-    padding: 1px 1px 5px 1px;
-    border: 1px solid #999;
+    background: #ececec;
 }    
 .album-teaser-cover {
     float: left;
 }
 .album-teaser-cover img {
     display: block;
-    width: 80px;
-    height: 80px;
+    width: 102px;
+    height: 102px;
 }    
 .album-teaser-info {
-    padding: 5px 40px 0 90px;
+    padding: 12px 10px 0 112px;
 }
-.album-playlist-toggler {
-    position: absolute;
-    text-align: center;
-    padding: 7px 5px;
-    width: 40px;
-    height: 40px;
-    right: 0;
-    top: 0;
+.album-title {
+    font-size: 16px;
+    padding: 0 0 5px 0;
 }
-.toggle-arrow {
-    display: inline-block;
-    width: 20px;
-    height: 12px;
-    background-image: url('../img/arrow_down.png');
-    background-size: contain;
-}
-.toggle-arrow.up {
-    background-image: url('../img/arrow_up.png');
-}
-.album-control {
-    float: left;
-    width: 40px;
-    height: 40px;
-    background-size: 30px 30px;
-    background-repeat: no-repeat;
-    background-position: left bottom;
-}
-.album-control.play {
-    background-image: url('../img/play.png');
-}
-.album-control.pause {
-    background-image: url('../img/pause.png');
-}
-.album-songs {
-    text-align: right;
-    padding-top: 20px;
-}
-.audio-wrapper {
-    padding: 0 0 10px 0;
-}
-.album-playlist .audio-wrapper {
-    padding: 0;
-    border: 1px solid #999;
-    border-top: 0;
-}
-.audio-player {
-    height: 44px;
+.album-player {
     display: table;
     width: 100%;
-    padding: 5px;
+    height: 50px;
+}
+.album-control,
+.album-songs,
+.album-playlist-toggler {
+    display: table-cell;
+    vertical-align: middle;
+}
+.album-control,
+.album-playlist-toggler{
+    width: 45px;
+}
+.album-playlist-toggler{
+    text-align: right;
+}
+
+/*  ==========================================================================
+    Album Playlist
+    ==========================================================================  */
+.audio-player {
+    display: table;
+    width: 100%;
+    height: 50px;
+    border-bottom: 1px solid #bbb;
 }
 .audio-player.active {
-    background: #FFC061;
+    background: #d9d9d9;
 }
-.audio-control,
+.audio-control {
+    float: left;
+    height: 50px;
+    width: 63px;
+    padding: 7.5px 18px 7.5px 10px;
+}
+.audio-title {
+    float: left;
+}
 .audio-time {
-    display: table-cell;
-    position: relative;
-    vertical-align: middle;
-    width: 44px;
+    float: right;
 }
-.audio-time {
-    padding: 0 5px;
-}
-.audio-control.play,
-.audio-control.pause{
-    width: 40px;
-    height: 40px;
-    background-size: 30px 30px;
-    background-repeat: no-repeat;
-    background-position: left center;
-}
-.audio-control.play {
-    background-image: url('../img/play.png');
-}
-.audio-control.pause {
-    background-image: url('../img/pause.png');
-}
+.audio-metadata {
+    padding: 12px 10px 0 63px;
+}    
 .audio-progress {
     position: relative;
     width: 100%;
-    height: 46px;
-    background: #fff;
-    border: 1px solid #333;
+    height: 22px;
     overflow: hidden;
+    padding: 7px 0;
 }
 .audio-progress .progress,
+.audio-progress .progress-bg,
 .audio-progress .loaded {
     position: absolute;
     left: 0px;
-    height: 44px;
+    height: 8px;
     width: 0%;
 }
 .audio-progress .progress {
-    background: #999;
+    background: #0a3d7d;
     z-index: 1;
 }
+.audio-progress .progress-bg {
+    background: #bbb;
+    width: 100%;
+}
 .audio-progress .loaded {
-    background: #ddd;
+    background: #aaa;
+}
+
+
+/*  ==========================================================================
+    Icons
+    ==========================================================================  */
+.icon-arrow,
+.play-pause { 
+    display: inline-block; 
+    /*background: url('../img/player-icons.png') no-repeat;*/
+    background-image: url(data:image/png;base64,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);
+    background-repeat: no-repeat;
+    background-size: 37px 100px;
+}
+.icon-arrow {
+    width: 20px; 
+    height: 13px;
+    background-position: -1px -86px;
+}
+.up .icon-arrow {
+    background-position: -1px -72px;
+}
+.play-pause {
+    width: 35px;
+    height: 35px;
+    background-position: -1px -36px;
+}
+.pause .play-pause {
+    background-position: -1px -0px;
 }

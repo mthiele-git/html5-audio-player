@@ -20,13 +20,17 @@
                 <div class="album-teaser-info">
                     <div class="album-title"></div>
                     <div class="album-artist"></div>
-                    <div class="album-control play clearfix"></div>
-                    <div class="album-songs">
-                        <span class="song-count"></span> Songs
+                    <div class="album-player">
+                        <div class="album-control">
+                            <div class="play-pause"></div>
+                        </div>
+                        <div class="album-songs">
+                            <span class="song-count"></span> Songs
+                        </div>
+                        <div class="album-playlist-toggler">
+                            <div class="icon-arrow"></div>
+                        </div>
                     </div>
-                </div>
-                <div class="album-playlist-toggler">
-                    <div class="toggle-arrow"></div>
                 </div>
             </div>
             <div class="album-playlist hidden">
@@ -44,6 +48,14 @@
                 </div>
             </div>
         </div>
+        <!--
+        <object data="mp3/track-4.mp3" type="audio/mpeg" width="320" height="240">
+            <param name="src" value="mp3/track-4.mp3">
+            <param name="autoplay" value="false">
+            <param name="autoStart" value="0">
+            Hear the sound : <a href="mp3/track-4.mp3">music</a>
+        </object>
+        -->
         <script src="js/framework.js"></script>
         <script src="js/audioplayer.js"></script>
     </body>
