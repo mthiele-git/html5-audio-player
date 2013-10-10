@@ -2,25 +2,61 @@
    audioplayer.js
    ===================================== */
 /*JSLint*/
-/*global window:true, console:true, DocumentTouch: true*/
+/*global window:true, console:true*/
 
 (function (c$) {
 
     'use strict';
 
     var doc = window.document,
+        bLogging = true,
         a = doc.createElement('audio'),
         bAudio = a.canPlayType && (a.canPlayType('audio/mpeg') !== '' && a.canPlayType('audio/mpeg') !== 'no'),
         bTouch = window.ontouchstart !== undefined,
         sStartEvt = bTouch ? 'touchstart' : 'mousedown',
         sMoveEvt = bTouch ? 'touchmove' : 'mousemove',
         sEndEvt = bTouch ? 'touchend' : 'mouseup',
+        aAudioEvents = [
+            // http://www.w3schools.com/tags/ref_av_dom.asp
+            'abort', //Fires when the loading of an audio/video is aborted
+            'canplay', //Fires when the browser can start playing the audio/video
+            'canplaythrough', //Fires when the browser can play through the audio/video without stopping for buffering
+            'durationchange', //Fires when the duration of the audio/video is changed
+            'emptied', //Fires when the current playlist is empty
+            'ended', //Fires when the current playlist is ended
+            'error', //Fires when an error occurred during the loading of an audio/video
+            'loadeddata', //Fires when the browser has loaded the current frame of the audio/video
+            'loadedmetadata', //Fires when the browser has loaded meta data for the audio/video
+            'loadstart', //Fires when the browser starts looking for the audio/video
+            'pause', //Fires when the audio/video has been paused
+            'play', //Fires when the audio/video has been started or is no longer paused
+            'playing', //Fires when the audio/video is ready to play after having been paused or stopped for buffering
+            'progress', //Fires when the browser is downloading the audio/video
+            'ratechange', //Fires when the playing speed of the audio/video is changed
+            'seeked', //Fires when the user is finished moving/skipping to a new position in the audio/video
+            'seeking', //Fires when the user starts moving/skipping to a new position in the audio/video
+            'stalled', //Fires when the browser is trying to get media data, but data is not available
+            'suspend', //Fires when the browser is intentionally not getting media data
+            'timeupdate', //Fires when the current playback position has changed
+            'volumechange', //Fires when the volume has been changed
+            'waiting' //Fires when the video stops because it needs to buffer the next frame
+        ],
         Album,
         Track;
     
     // Helper
     function ucfirst(str) {
         return str.slice(0, 1).toUpperCase() + str.substring(1);
+    }
+    
+    function logInfo(str, param) {
+        if (!bLogging) {
+            return;
+        } else if (param !== undefined) {
+            return console.log(str, param);
+        } else {
+            return console.log(str);
+        }
     }
     
     Album = function (id, data) {
@@ -42,24 +78,26 @@
         instances: [],
         init: function () {
             var that = this;
-            
-            this.iIndex = this.instances.push(this) - 1;
-                        
+
+            // initialize tracks in the playlist
             this.initPlaylist();
-            
-            this.$playlistToggler.bind('click', function (e) {
-                that.togglePlaylist();
-            });
-                        
+
+            // set amount of tracks
             c$('.song-count', this.$wrapper).html(this.aTracks.length);
             
+            // set album title
             c$('.album-title').html(this.title);
             
-            c$('.album-artist').html(this.artist);
+            // set album artist
+            c$('.album-artist').html('by ' + this.artist);
             
+            // add touch/click listeners for showing, hiding & playing the playlist
             this.$control.bind('click', function () {
                 that.showPlaylist();
                 return !that.bPlaying ? that.playTrack() : that.pauseTrack();
+            });
+            this.$playlistToggler.bind('click', function (e) {
+                that.togglePlaylist();
             });
         },
         playTrack: function () {
@@ -101,19 +139,22 @@
         this.title = data.title;
         this.artist = data.artist;
         this.src = data.src;
+        this.length = data.length;
         this.album = album || null;
         this.$wrapper = c$('#' + this.id);
-        this.$duration = c$('.duration', this.$wrapper);
-        this.$control = this.$progressBar = this.$player = this.audio = null;
+        this.$wrapper[0].removeAttribute('data-src');
+        this.audio = null;
+        this.error = null;
         this.bPlaying = false;
-        this.bLoadStarted = false;
+        this.bWaiting = false;
         this.bPlayStarted = false;
+        this.bCanPlay = false;
         this.iIndex = 0;
         this.fDuration = 0;
         this.iLoadedPercent = 0;
 
         if (!bAudio) {
-            console.log('No HTML5 audio support!');
+            logInfo('No HTML5 audio support!');
             return;
         }
         
@@ -133,57 +174,89 @@
                 that.adjustCurrentTime(e);
             }
 
+            // set track playlist index
             this.iIndex = this.instances.push(this) - 1;
 
+            // create player markup
             this.createPlayer();
 
-            this.audio = new window.Audio();
-
-            this.audio.load(); // required for 'older' browsers
+            // init audio element
+            this.initAudio();
             
-            this.audio.preload = 'metadata';
-
-            this.audio.setAttribute('src', this.src);
-
-            this.$control = c$('.audio-control', this.$wrapper).bind(sStartEvt, function (e) {
+            // add touch/click listeners
+            this.$control.bind(sStartEvt, function (e) {
                 return !that.bPlaying ? that.play() : that.pause();
             });
-
-            this.$progressBar = c$('.audio-progress', this.$wrapper).bind(sStartEvt, function (e) {
+            this.$progressBar.bind(sStartEvt, function (e) {
                 adjustCurrentTime(e);
                 that.$progressBar.bind(sMoveEvt, adjustCurrentTime);
             });
-            
-            this.$player = c$('.audio-player', this.$wrapper);
-            
-            this.$duration = c$('.duration', this.$wrapper);
-            
-            this.$loaded = c$('.loaded', this.$wrapper);
-            
-            this.$progress = c$('.progress', this.$wrapper);
-            
-            this.$played = c$('.played', this.$wrapper);
-
             this.$progressBar.bind(sEndEvt, function () {
                 that.$progressBar.unbind(sMoveEvt, adjustCurrentTime);
             });
-            
-            ['play', 'pause', 'ended', 'timeupdate', 'loadstart', 'loadedmetadata'].forEach(function (evtType) {
-                var listener = 'on' + ucfirst(evtType);
-                c$(that.audio).bind(evtType, function (e) {
-                    that[listener]();
-                });
-            });
         },
 
+        initAudio: function () {
+            
+            var that = this;
+            
+            // create new Audio object
+            this.audio = new window.Audio();
+            
+            // set preload option 
+            this.audio.preload = 'none';
+
+            // set track source
+            this.audio.setAttribute('src', this.src);
+            logInfo(that.id + ' audio src: ' + this.src);
+            
+            // add audio listeners for specified events
+            ['play', 'playing', 'waiting', 'pause', 'ended', 'error', 'timeupdate', 'loadstart', 'loadedmetadata', 'seeking', 'seeked'].forEach(function (evtType) {
+                var listener = 'on' + ucfirst(evtType);
+                c$(that.audio).bind(evtType, function (e) {
+                    that[listener](e);
+                });
+            });
+            
+            // debug audio events
+            if (bLogging) {
+                aAudioEvents.forEach(function (evtType) {
+                    c$(that.audio).bind(evtType, function (e) {
+                        if (evtType !== 'timeupdate') {
+                            logInfo(that.id + ' audio event: ' + evtType);
+                        }
+                    });
+                });
+            }
+        },
+        
         createPlayer: function () {
+            
+            this.$player = c$.newEl('div', {'class': 'audio-player clearfix'});
+            this.$duration = c$.newEl('strong', {'class': 'duration'}, this.length);
+            this.$loaded = c$.newEl('div', {'class': 'loaded'});
+            this.$progress = c$.newEl('div', {'class': 'progress'});
+            this.$played = c$.newEl('span', {'class': 'played'}, '00:00');
+            this.$progressBar = c$.newEl('div', {'class': 'audio-progress'}, '<div class="progress-bg"></div>');
+            this.$control = c$.newEl('div', {'class': 'audio-control'}, '<div class="play-pause"></div>');
+            this.$meta = c$.newEl('div', {'class': 'audio-metadata clearfix'});
+            this.$title = c$.newEl('div', {'class': 'audio-title'}, (this.artist !== '' ? this.artist + ' - ' : '') + this.title);
+            this.$time = c$.newEl('div', {'class': 'audio-time'});
+            
+            this.$progressBar.append(this.$progress).append(this.$loaded);
+            this.$time.append(this.$played).append(c$.newEl('span', {}, '/')).append(this.$duration);
+            this.$meta.append(this.$title).append(this.$time).append(this.$progressBar);
+            this.$player.append(this.$control).append(this.$meta);
+            this.$wrapper.append(this.$player);
+            
+            /*
             this.$wrapper.html(
                 '<div class="audio-player clearfix">' +
                     '<div class="audio-control">' +
                         '<div class="play-pause"></div>' +
                     '</div>' +
                     '<div class="audio-metadata clearfix">' +
-                        '<div class="audio-title">dummy-title</div>' +
+                        '<div class="audio-title"></div>' +
                         '<div class="audio-time">' +
                             '<span class="played">00:00</span>/<strong class="duration">00:00</strong>' +
                         '</div>' +
@@ -193,27 +266,46 @@
                             '<div class="loaded"></div>' +
                         '</div>' +
                     '</div>' +
-                    '</div>'
+                '</div>'
             );
+
+            // get player elements
+            this.$player = c$('.audio-player', this.$wrapper);
+            this.$duration = c$('.duration', this.$wrapper);
+            this.$loaded = c$('.loaded', this.$wrapper);
+            this.$progress = c$('.progress', this.$wrapper);
+            this.$played = c$('.played', this.$wrapper);
+            this.$progressBar = c$('.audio-progress', this.$wrapper);
+            this.$control = c$('.audio-control', this.$wrapper);
+            this.$title = c$('.audio-title', this.$wrapper);
+            
+            */
         },
 
-        onPlay: function () {
-            this.$control.removeClass('play').addClass('pause');
+        onPlay: function (e) {
+            if (!this.bPlayStarted) {
+                this.bPlayStarted = true;
+            }
+        },
+        
+        onPlaying: function (e) {
+            this.$control.removeClass('play waiting').addClass('pause');
             this.bPlaying = true;
-            c$('.audio-player').removeClass('active');
-            this.$player.addClass('active');
+            this.bWaiting = false;
             if (this.album) {
                 this.album.bPlaying = true;
                 this.album.iTrackNr = this.iIndex;
                 this.album.toggleControlIcon();
             }
-            if (!this.started) {
-                this.started = true;
-            }
+        },
+        
+        onWaiting: function () {
+            this.bWaiting = true;
+            this.$control.removeClass('play pause').addClass('waiting');
         },
 
-        onPause: function () {
-            this.$control.removeClass('pause').addClass('play');
+        onPause: function (e) {
+            this.$control.removeClass('pause waiting').addClass('play');
             this.bPlaying = false;
             if (this.album) {
                 this.album.bPlaying = false;
@@ -221,34 +313,78 @@
             }
         },
         
-        onEnded: function () {
+        onSeeking: function (e) {
+            //this.pause();
+        },
+        
+        onSeeked: function (e) {
+            //this.play();
+        },
+        
+        onEnded: function (e) {
             this.setCurrentTime(0);
             // play next track
             if (this.instances[this.iIndex + 1] !== undefined) {
                 this.instances[this.iIndex + 1].play();
             }
         },
+        
+        onError: function (e) {
+            this.error = e.target.error;
+            var msg = 'Audio Error: ';
 
-        onLoadstart: function () {
-            if (!this.bLoadStarted) {
-                this.bLoadStarted = true;
-                var that = this;
-                that.loadTimer = window.setInterval(function () {
-                    that.setLoadedProgress();
-                    //console.log('buffered ' + that.iLoadedPercent + '%');
-                    if (that.iLoadedPercent >= 100) {
-                        //console.log('buffering finished');
-                        window.clearInterval(that.loadTimer);
-                    }
-                }, 200);
+            switch (this.error.code) {
+            case this.error.MEDIA_ERR_ABORTED:
+                msg += 'MEDIA_ERR_ABORTED';
+                break;
+            case this.error.MEDIA_ERR_NETWORK:
+                msg += 'MEDIA_ERR_NETWORK';
+                break;
+            case this.error.MEDIA_ERR_DECODE:
+                msg += 'MEDIA_ERR_DECODE';
+                break;
+            case this.error.MEDIA_ERR_SRC_NOT_SUPPORTED:
+                msg += 'MEDIA_ERR_SRC_NOT_SUPPORTED';
+                break;
+            default:
+                msg += 'An unknown error occurred.';
+                break;
             }
+            logInfo(this.src);
+            logInfo(msg);
         },
 
-        onTimeupdate: function () {
+        onLoadstart: function (e) {
+            var that = this,
+                timer,
+                buffered,
+                tmp,
+                loaded = -1;
+
+            timer = window.setInterval(function () {
+                
+                buffered = (that.audio.buffered.length > 0) ? that.audio.buffered.end(that.audio.buffered.length - 1) : null;
+                
+                if (buffered) {
+                    tmp = Math.floor((buffered / that.fDuration) * 100);
+                    if (tmp > loaded) {
+                        loaded = Math.floor((buffered / that.fDuration) * 100);
+                        that.setLoadedProgress(loaded);
+                        logInfo(that.id + ' buffered ' + loaded + '%');
+                    }
+                }
+                if (loaded >= 100) {
+                    //logInfo('buffering finished');
+                    window.clearInterval(timer);
+                }
+            }, 400);
+        },
+
+        onTimeupdate: function (e) {
             this.setPlayedProgress();
         },
 
-        onLoadedmetadata: function () {
+        onLoadedmetadata: function (e) {
             this.setDuration();
         },
 
@@ -262,10 +398,8 @@
             this.$duration.html((m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s);
         },
 
-        setLoadedProgress: function () {
-            var durationLoaded = this.audio.buffered.end(this.audio.buffered.length - 1);
-            this.iLoadedPercent = Math.ceil((durationLoaded / this.fDuration) * 100);
-            this.$loaded.css('width: ' + this.iLoadedPercent + '%;');
+        setLoadedProgress: function (percent) {
+            this.$loaded.css('width: ' + percent + '%;');
         },
 
         setPlayedProgress: function () {
@@ -276,25 +410,33 @@
             this.$progress.css('width: ' + playedPercent + '%;');
             this.$played.html((m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s);
         },
-
+        
+        setCurrentTime: function (time) {
+            if (this.audio.currentTime) {
+                this.audio.currentTime = time;
+            }
+        },
+        
         adjustCurrentTime: function (e) {
             var evt = bTouch ? e.touches[0] : e,
                 s = Math.round((this.audio.duration * (evt.pageX - this.$progressBar[0].offsetLeft)) / this.$progressBar[0].offsetWidth);
             this.setCurrentTime(s);
         },
-        
-        setCurrentTime: function (time) {
-            this.audio.currentTime = time;
-        },
 
         play: function () {
             this.pauseAll();
+            this.$player.addClass('active');
             if (!this.bPlaying) {
                 this.audio.play();
+            }
+            if (this.bWaiting) {
+                this.reload();
             }
         },
 
         pause: function () {
+            this.$player.removeClass('active');
+            this.$control.removeClass('waiting');
             if (this.bPlaying) {
                 this.audio.pause();
             }
@@ -309,6 +451,13 @@
             this.instances.forEach(function (track) {
                 track.pause();
             });
+        },
+        
+        reload: function () {
+            logInfo(this.id + ' reload ' + this.src);
+            this.$player.removeClass('active');
+            this.audio.src = this.src;
+            this.bWaiting = false;
         }
     };
 
