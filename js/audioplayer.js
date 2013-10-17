@@ -10,6 +10,7 @@
 
     var doc = window.document,
         bLogging = true,
+        os = c$.device,
         a = doc.createElement('audio'),
         bAudio = a.canPlayType && (a.canPlayType('audio/mpeg') !== '' && a.canPlayType('audio/mpeg') !== 'no'),
         bTouch = window.ontouchstart !== undefined,
@@ -48,7 +49,7 @@
     function ucfirst(str) {
         return str.slice(0, 1).toUpperCase() + str.substring(1);
     }
-    
+
     function logInfo(str, param) {
         if (!bLogging) {
             return;
@@ -140,6 +141,7 @@
         this.artist = data.artist;
         this.src = data.src;
         this.length = data.length;
+        this.bDownloadable = (data.download === 'true');
         this.album = album || null;
         this.$wrapper = c$('#' + this.id);
         this.$wrapper[0].removeAttribute('data-src');
@@ -169,11 +171,6 @@
 
             var that = this;
             
-            // event listener for progress bar
-            function adjustCurrentTime(e) {
-                that.adjustCurrentTime(e);
-            }
-
             // set track playlist index
             this.iIndex = this.instances.push(this) - 1;
 
@@ -182,18 +179,6 @@
 
             // init audio element
             this.initAudio();
-            
-            // add touch/click listeners
-            this.$control.bind(sStartEvt, function (e) {
-                return !that.bPlaying ? that.play() : that.pause();
-            });
-            this.$progressBar.bind(sStartEvt, function (e) {
-                adjustCurrentTime(e);
-                that.$progressBar.bind(sMoveEvt, adjustCurrentTime);
-            });
-            this.$progressBar.bind(sEndEvt, function () {
-                that.$progressBar.unbind(sMoveEvt, adjustCurrentTime);
-            });
         },
 
         initAudio: function () {
@@ -231,55 +216,69 @@
         },
         
         createPlayer: function () {
+
+            this.$player = c$.newEl('div', {'class': 'audio-player clearfix'},
+                '<div class="audio-control">' +
+                    '<div class="ic-play-pause"></div>' +
+                '</div>' +
+                '<div class="audio-metadata clearfix">' +
+                    '<div class="audio-title">' + this.title + (this.artist !== '' ? '<br/>by ' + this.artist : '') + '</div>' +
+                    '<div class="audio-time">' +
+                        '<span class="played">00:00</span>/<strong class="duration">00:00</strong>' +
+                    '</div>' +
+                    '<div class="audio-progress">' +
+                        '<div class="progress-bg"></div>' +
+                        '<div class="progress"></div>' +
+                        '<div class="loaded"></div>' +
+                    '</div>' +
+                '</div>' +
+                '<div class="audio-download">' +
+                    (os.ios ? '<div class="ic-mail"></div>' : '<a class="ic-download" href="" download="' + this.artist + ' - ' + this.title + '.mp3" target="_blank"></a>') +
+                '</div>');
             
-            this.$player = c$.newEl('div', {'class': 'audio-player clearfix'});
-            this.$duration = c$.newEl('strong', {'class': 'duration'}, this.length);
-            this.$loaded = c$.newEl('div', {'class': 'loaded'});
-            this.$progress = c$.newEl('div', {'class': 'progress'});
-            this.$played = c$.newEl('span', {'class': 'played'}, '00:00');
-            this.$progressBar = c$.newEl('div', {'class': 'audio-progress'}, '<div class="progress-bg"></div>');
-            this.$control = c$.newEl('div', {'class': 'audio-control'}, '<div class="play-pause"></div>');
-            this.$meta = c$.newEl('div', {'class': 'audio-metadata clearfix'});
-            this.$title = c$.newEl('div', {'class': 'audio-title'}, (this.artist !== '' ? this.artist + ' - ' : '') + this.title);
-            this.$time = c$.newEl('div', {'class': 'audio-time'});
-            
-            this.$progressBar.append(this.$progress).append(this.$loaded);
-            this.$time.append(this.$played).append(c$.newEl('span', {}, '/')).append(this.$duration);
-            this.$meta.append(this.$title).append(this.$time).append(this.$progressBar);
-            this.$player.append(this.$control).append(this.$meta);
             this.$wrapper.append(this.$player);
             
-            /*
-            this.$wrapper.html(
-                '<div class="audio-player clearfix">' +
-                    '<div class="audio-control">' +
-                        '<div class="play-pause"></div>' +
-                    '</div>' +
-                    '<div class="audio-metadata clearfix">' +
-                        '<div class="audio-title"></div>' +
-                        '<div class="audio-time">' +
-                            '<span class="played">00:00</span>/<strong class="duration">00:00</strong>' +
-                        '</div>' +
-                        '<div class="audio-progress">' +
-                            '<div class="progress-bg"></div>' +
-                            '<div class="progress"></div>' +
-                            '<div class="loaded"></div>' +
-                        '</div>' +
-                    '</div>' +
-                '</div>'
-            );
-
             // get player elements
-            this.$player = c$('.audio-player', this.$wrapper);
-            this.$duration = c$('.duration', this.$wrapper);
-            this.$loaded = c$('.loaded', this.$wrapper);
-            this.$progress = c$('.progress', this.$wrapper);
-            this.$played = c$('.played', this.$wrapper);
-            this.$progressBar = c$('.audio-progress', this.$wrapper);
-            this.$control = c$('.audio-control', this.$wrapper);
-            this.$title = c$('.audio-title', this.$wrapper);
+            this.$duration = c$('.duration', this.$player);
+            this.$loaded = c$('.loaded', this.$player);
+            this.$progress = c$('.progress', this.$player);
+            this.$played = c$('.played', this.$player);
+            this.$progressBar = c$('.audio-progress', this.$player);
+            this.$control = c$('.audio-control', this.$player);
+            this.$title = c$('.audio-title', this.$player);
             
-            */
+            this.addPlayerEventListeners();
+        },
+        
+        addPlayerEventListeners: function () {
+                        
+            var that = this;
+            
+            // event listener for progress bar
+            function adjustCurrentTime(e) {
+                that.adjustCurrentTime(e);
+            }
+            
+            // add touch/click listeners
+            this.$control.bind(sStartEvt, function (e) {
+                return !that.bPlaying ? that.play() : that.pause();
+            });
+            
+            this.$progressBar.bind(sStartEvt, function (e) {
+                adjustCurrentTime(e);
+                that.$progressBar.bind(sMoveEvt, adjustCurrentTime);
+            });
+            
+            this.$progressBar.bind(sEndEvt, function () {
+                that.$progressBar.unbind(sMoveEvt, adjustCurrentTime);
+            });
+            
+            if (this.bDownloadable && !os.ios) {
+                c$('.ic-download', this.$wrapper).bind(sStartEvt, function (e) {
+                    this.href = that.src;
+                    return true;
+                });
+            }
         },
 
         onPlay: function (e) {
